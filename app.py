@@ -64,3 +64,8 @@ try:
         ngrok.kill()  # Clean up ngrok tunnels
 except Exception as e:
     print(f"Error starting server: {e}")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
