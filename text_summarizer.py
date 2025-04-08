@@ -5,11 +5,11 @@ class TextSummarization:
     
     def __init__(self):
         self.device = 0 if torch.cuda.is_available() else -1
-        self.model="google/pegasus-cnn_dailymail"
+        self.model="transformersbook/pegasus-samsum"
 
         try:
-            self.summarizer = pipeline(
-                "summarization",
+            self.pipe = pipeline(
+                "text2text-generation",
                 model=self.model,
                 device=self.device
                 )

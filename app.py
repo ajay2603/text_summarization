@@ -10,35 +10,50 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 
-class TextRequest(BaseModel):
+class DialogueRequest(BaseModel):
     text: str
-    max_length: int = 130
-    min_length: int = 30
-    do_sample: bool = False
+    max_length: int = 64  # Optimal for dialogues
+    min_length: int = 16
+    temperature: float = 1.0  # For generation diversity
 
 app = FastAPI(title="Pegasus Summarization API")
 
 textSummarization = TextSummarization()
 
 @app.post("/summarize")
-async def summarize(request: TextRequest):
+async def summarize(request: DialogueRequest):
     try:
-        if len(request.text) < 10:
-            raise HTTPException(status_code=400, detail="Text too short for summarization")
+        if len(request.text) < 20:
+            raise HTTPException(status_code=400, detail="Dialogue too short (min 20 chars)")
 
-        summary = textSummarization.summarizer(
+        result = textSummarization.pipe(
             request.text,
             max_length=request.max_length,
             min_length=request.min_length,
-            do_sample=request.do_sample
+            temperature=request.temperature,
+            do_sample=True if request.temperature != 1.0 else False
         )
-        return {"summary": summary[0]['summary_text']}
+
+        return {
+            "summary": result[0]['generated_text'],
+            "model": "pegasus-samsum",
+            "parameters": {
+                "max_length": request.max_length,
+                "min_length": request.min_length,
+                "temperature": request.temperature
+            }
+        }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 async def health_check():
-    return {"status": "active", "model": "pegasus-cnn_dailymail"}
+    return {
+        "status": "active",
+        "model": "transformersbook/pegasus-samsum",
+        "optimal_for": "chat/dialogue summarization"
+    }
 
 # Ngrok setup
 try:
@@ -51,7 +66,7 @@ try:
     config = uvicorn.Config(
         app,
         host="0.0.0.0",
-        port=8000,
+        port=int(os.environ.get("PORT", 8000)),
         timeout_keep_alive=60
     )
     server = uvicorn.Server(config)
@@ -68,4 +83,4 @@ except Exception as e:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    uvicorn.run(app)
